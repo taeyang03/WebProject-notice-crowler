@@ -15,49 +15,9 @@
 | **2. RAG 파이프라인 구축**<br>(최소 1개 이상) | - **Chroma** 벡터 데이터베이스(`notice_collection`) 기반 시맨틱 검색 파이프라인 구축<br> - `OpenAIEmbeddings(text-embedding-3-small)` 모델을 이용해 크롤링된 공지사항 본문을 임베딩하고 자율 질의응답 및 요약 기능 수행 |
 | **3. 멀티턴 대화 및 메모리** | - LangGraph 내장 체크포인터인 **`MemorySaver`**를 연동하여 세션(`thread_id`)별 독립적인 대화 맥락 유지<br> - `add_messages` 툴을 통한 상태 업데이트로 멀티턴 대화 제어 |
 | **4. StateGraph 및 조건부 분기**<br>(Conditional Edge 필수) | - `StateGraph(AgentState)` 구조 설계<br> - 시스템 명령어(`!su`, `!kw add` 등) 감지 시 `command_node`로 분기하거나, 사용자 의도 분석 결과(`intent_type`)에 따라 자율적으로 RAG 검색, 요약, 혹은 일반 대화 노드로 라우팅하는 **조건부 분기(Conditional Edge)** 로직 완비 |
-| **5. 미들웨어 적용**<br>(최소 1개 이상) | - **안정성/운영 관점의 다중 가드레일 미들웨어 도입**<br>  - `slowapi` (`Limiter`)를 활용한 API 속도 제한(Rate Limiting)으로 DoS 방지 및 가드레일 구축<br>  - `GZipMiddleware`를 통한 네트워크 리소스 최싱화<br>  - `tenacity` 라이브러리의 `@retry` 메커니즘을 크롤러 네트워크 통신 부에 적용하여 일시적 장애 복구력 확보 |
+| **5. 미들웨어 적용**<br>(최소 1개 이상) | - **안정성/운영 관점의 다중 가드레일 미들웨어 도입**<br>  - `slowapi` (`Limiter`)를 활용한 API 속도 제한(Rate Limiting)으로 DoS 방지 및 가드레일 구축<br>  - `GZipMiddleware`를 통한 네트워크 리소스 최적화<br>  - `tenacity` 라이브러리의 `@retry` 메커니즘을 크롤러 네트워크 통신 부에 적용하여 일시적 장애 복구력 확보 |
 | **6. 구조화된 출력 파서**<br>(OutputParser/Pydantic) | - **Pydantic 구조화 출력을 멀티 지점에서 활용**<br>  - `UserIntent`: 사용자 요청의 키워드, 날짜 필터, 의도 유형 등을 파싱하여 RAG 전처리 수행<br>  - `KeywordExtraction`: LLM 크롤링 파트에서 공지 본문 내 태그를 3~5개 형태로 완벽히 구조화 출력(`with_structured_output`) |
 | **7. API Key 분리 관리** | - `load_dotenv()` 기반 프로젝트 루트 내 `.env` 파일로 중요 자격 증명(`OPENAI_API_KEY`) 하드코딩 없이 철저히 분리 |
-
----
-
-## 🛠️ 1. 환경 설정 (Environment Setup)
-
-### 필수 패키지 설치
-본 시스템은 Python 3.10 이상의 환경에서 정상 작동합니다. 터미널에서 다음 명령어를 실행하여 의존성 라이브러리(`requirements.txt`)를 설치해 주세요.
-
-```bash
-pip install fastapi uvicorn pydantic dotenv slowapi tenacity beautifulsoup4 httpx aiosmtplib
-pip install langchain langchain-core langchain-openai langchain-chroma langgraph
-
-```
-
-### 환경 변수 설정 (`.env`)
-
-프로젝트 루트 디렉토리에 `.env` 파일을 생성하고 아래와 같이 필수 API Key 및 에이전트 식별 정보를 입력합니다.
-
-```env
-# OpenAI API Key (텍스트 임베딩 및 자율 답변 생성용)
-OPENAI_API_KEY=sk-proj-YourActualOpenAiApiKeyHere...
-
-# LangChain 내부 User-Agent 정보 설정
-USER_AGENT=notice-rag-agent/1.0
-
-```
-
-### 시스템 디렉토리 구조
-
-```text
-📂 project-root/
- ├── 📄 server.py                 # FastAPI 웹서버 & LangGraph Agent 핵심 비즈니스 로직
- ├── 📄 enterprise_crawler.py     # 대학 사이트 타겟팅 스케줄러 & LLM 키워드 추출 크롤러
- ├── 📄 .env                      # API 자격 증명 관리 파일 (보안 주의)
- ├── 📄 feedbacks.jsonl           # 사용자 평가/피드백 실시간 적재 데이터 스트림
- ├── 📂 chroma_db/                # 공지사항 벡터 및 유저 구독 정보가 지속 보관되는 Vector DB
- └── 📂 public/                   # 정적 웹 자원 및 인터랙티브 UI 서비스 컴포넌트
-      └── 📄 index.html           # 학사 비서 웹 인터페이스 화면
-
-```
 
 ---
 
@@ -67,24 +27,24 @@ USER_AGENT=notice-rag-agent/1.0
 
 ```mermaid
 graph TD
-    START([사용자 입력 요청]) --> A{명령어 검증 (! 시작여부)}
+    START([사용자 입력 요청]) --> A{"명령어 검증 (! 시작여부)"}
     
     A -->|Yes| B[command_node]
-    B -->|사용자 관리 / 세션 전환 / 키워드 구독| END([즉시 응답 반환])
+    B --> END([즉시 응답 반환])
     
-    A -->|No (자연어)| C[intent_analyzer_node]
-    C -->|UserIntent Pydantic 분석| D{intent_type 조건부 분기}
+    A -->|No| C[intent_analyzer_node]
+    C --> D{"intent_type 조건부 분기"}
     
-    D -->|'summary' / 'search'| E[RAG_retrieval_node]
-    E -->|Recency-Aware Post Filtering 반년이내 및 마감일 필터링| F[llm_generation_node]
+    D -->|summary / search| E[RAG_retrieval_node]
+    E --> F[llm_generation_node]
     
-    D -->|'general' / Tool 호출 필요 시| G[llm_with_tools_node]
-    G -->|자율 도구 선택| H[tool_node]
-    H --> F
+    D -->|general| G[llm_with_tools_node]
+    G --> H{"도구 호출 필요 여부"}
+    H -->|Yes| I[tool_node]
+    H -->|No| F
+    I --> G
     
     F --> END
-
-```
 
 ### 핵심 차별화 기능 (Key Features)
 
