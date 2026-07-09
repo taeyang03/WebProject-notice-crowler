@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ko" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>학사 비서 AI</title>
+    
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { 
+                extend: {
+                    fontFamily: {
+                        sans: ['Pretendard', 'sans-serif'],
+                    },
+                    colors: {
+                        // 세련된 다크블루(Navy) 기반 커스텀 컬러맵
+                        brand: {
+                            light: '#F8FAFC',  // 아주 밝은 푸른빛 도는 회색 (라이트모드 배경)
+                            primary: '#1E3A8A', // 다크블루 포인트 (버튼, 내 말풍선)
+                            hover: '#152C6A',   // 다크블루 호버
+                            darkBg: '#0B1121',  // 완전한 다크모드 배경 (딥 네이비)
+                            darkCard: '#131C31',// 다크모드 카드 배경
+                        }
+                    }
+                } 
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .whitespace-pre-wrap { white-space: pre-wrap; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* 버튼 클릭 시 살짝 눌리는 쫀득한 애니메이션 */
+        .btn-active:active { transform: scale(0.96); transition: transform 0.1s; }
+        
+        /* 스트리밍 텍스트 깜빡임 커서 효과 */
+        .typing-cursor::after {
+            content: '▍';
+            animation: blink 1s step-start infinite;
+            color: #3b82f6;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+    </style>
+</head>
+<body class="bg-brand-light dark:bg-brand-darkBg text-slate-800 dark:text-slate-200 transition-colors duration-300 h-screen flex flex-col font-sans selection:bg-brand-primary selection:text-white">
+
+    <header class="sticky top-0 bg-white/70 dark:bg-brand-darkBg/70 backdrop-blur-md shadow-sm border-b border-slate-200/50 dark:border-slate-800/50 px-5 sm:px-8 py-4 flex justify-between items-center z-20 transition-all">
+        <h1 class="text-xl font-bold flex items-center gap-2 tracking-tight text-brand-primary dark:text-white">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-primary to-blue-500 flex items-center justify-center text-white text-sm shadow-md">
+                <i class="fa-solid fa-bolt"></i>
+            </div>
+            학사 비서 AI
+        </h1>
+        <div class="flex gap-3 items-center">
+            <button id="clear-history-btn" class="btn-active w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all" title="대화 기록 지우기">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+            <button id="theme-toggle" class="btn-active w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-brand-darkCard text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all shadow-inner">
+                <i id="theme-icon" class="fa-solid fa-moon"></i>
+            </button>
+        </div>
+    </header>
+
+    <main id="chat-container" class="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 no-scrollbar scroll-smooth">
+        <div class="flex flex-col gap-2 w-full max-w-3xl mx-auto mt-4">
+            <div class="flex gap-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 dark:from-brand-darkCard dark:to-slate-800 flex items-center justify-center shrink-0 border border-blue-200/50 dark:border-slate-700 shadow-sm">
+                    <i class="fa-solid fa-robot text-brand-primary dark:text-blue-400 text-lg"></i>
+                </div>
+                <div class="bg-white dark:bg-brand-darkCard p-4 rounded-3xl rounded-tl-sm shadow-sm border border-slate-100 dark:border-slate-800 text-[15px] leading-relaxed">
+                    <p class="font-medium">안녕하세요! 대학 공지사항을 찾아드리는 학사 비서 AI입니다. 👏</p>
+                    <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">무엇을 도와드릴까요? 아래 추천 질문을 누르거나 직접 입력해보세요.</p>
+                </div>
+            </div>
+            
+            <div class="ml-14 flex flex-wrap gap-2 mt-2" id="suggestion-chips">
+                <button class="suggestion-btn btn-active px-4 py-2 bg-white dark:bg-brand-darkCard text-brand-primary dark:text-blue-300 text-[13px] font-medium rounded-full shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-primary dark:hover:border-blue-500 hover:text-brand-primary transition-all">
+                    🔥 오늘 공지사항 3개만 요약해줘
+                </button>
+                <button class="suggestion-btn btn-active px-4 py-2 bg-white dark:bg-brand-darkCard text-brand-primary dark:text-blue-300 text-[13px] font-medium rounded-full shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-primary dark:hover:border-blue-500 hover:text-brand-primary transition-all">
+                    💰 국가장학금 관련 공지가 있니?
+                </button>
+                <button class="suggestion-btn btn-active px-4 py-2 bg-white dark:bg-brand-darkCard text-brand-primary dark:text-blue-300 text-[13px] font-medium rounded-full shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-primary dark:hover:border-blue-500 hover:text-brand-primary transition-all">
+                    🏫 A대학교 최신 공지 찾아줘
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-transparent p-4 pb-6 sm:pb-8">
+        <form id="chat-form" class="max-w-3xl mx-auto relative flex items-end bg-white dark:bg-brand-darkCard rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-slate-200 dark:border-slate-700 p-2 transition-all focus-within:ring-2 focus-within:ring-brand-primary/20 dark:focus-within:ring-blue-500/30">
+            <textarea id="chat-input" rows="1" class="w-full bg-transparent text-[15px] text-slate-800 dark:text-slate-200 placeholder-slate-400 py-3 pl-4 pr-14 outline-none resize-none no-scrollbar max-h-32" placeholder="공지사항에 대해 질문해보세요..." autocomplete="off"></textarea>
+            
+            <button type="submit" id="send-btn" class="absolute right-3 bottom-3 btn-active bg-brand-primary hover:bg-brand-hover text-white w-10 h-10 rounded-2xl transition-colors flex items-center justify-center disabled:opacity-50 disabled:bg-slate-300 dark:disabled:bg-slate-700 shadow-md">
+                <i class="fa-solid fa-arrow-up"></i>
+            </button>
+        </form>
+        <div class="text-center mt-3 text-[11px] text-slate-400 dark:text-slate-500 tracking-tight">
+            AI는 실수가 있을 수 있습니다. 중요한 정보는 원본 링크를 반드시 확인하세요.
+        </div>
+    </footer>
+
+    <script>
+        // ==========================================
+        // Textarea 자동 높이 조절
+        // ==========================================
+        const chatInput = document.getElementById('chat-input');
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight < 128 ? this.scrollHeight : 128) + 'px';
+            if (this.value === '') this.style.height = 'auto';
+        });
+
+        // Enter 키 입력 시 전송 (Shift+Enter는 줄바꿈)
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+            }
+        });
+
+        // ==========================================
+        // 세션 관리 및 다크모드 로직
+        // ==========================================
+        let sessionId = localStorage.getItem('sessionId') || crypto.randomUUID();
+        localStorage.setItem('sessionId', sessionId);
+
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        
+        function updateThemeUI(isDark) {
+            document.documentElement.classList.toggle('dark', isDark);
+            themeIcon.classList.replace(isDark ? 'fa-moon' : 'fa-sun', isDark ? 'fa-sun' : 'fa-moon');
+        }
+
+        const isDarkPreset = localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        updateThemeUI(isDarkPreset);
+
+        themeToggleBtn.addEventListener('click', () => {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.theme = isDark ? 'dark' : 'light';
+            updateThemeUI(isDark);
+        });
+
+        // ==========================================
+        // DOM 요소 캐싱 및 기본 설정
+        // ==========================================
+        const chatForm = document.getElementById('chat-form');
+        const chatContainer = document.getElementById('chat-container');
+        const sendBtn = document.getElementById('send-btn');
+        const clearHistoryBtn = document.getElementById('clear-history-btn');
+        let isReceiving = false;
+
+        function scrollToBottom() {
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        }
+
+        document.querySelectorAll('.suggestion-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                chatInput.value = btn.textContent.replace(/[🔥💰🏫]/g, '').trim(); // 이모지 제거하고 입력
+                chatForm.dispatchEvent(new Event('submit'));
+            });
+        });
+
+        // UI에 메시지 렌더링
+        function appendMessage(sender, text) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `flex flex-col gap-2 w-full max-w-3xl mx-auto ${sender === 'user' ? 'items-end' : 'items-start'} transform transition-all duration-300 translate-y-2 opacity-0`;
+            
+            let innerHTML = '';
+            if (sender === 'user') {
+                innerHTML = `
+                    <div class="bg-brand-primary text-white p-4 rounded-3xl rounded-tr-sm shadow-md max-w-[85%] whitespace-pre-wrap text-[15px] leading-relaxed">${text}</div>
+                `;
+            } else {
+                innerHTML = `
+                    <div class="flex gap-3 w-full">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 dark:from-brand-darkCard dark:to-slate-800 flex items-center justify-center shrink-0 border border-blue-200/50 dark:border-slate-700 shadow-sm">
+                            <i class="fa-solid fa-robot text-brand-primary dark:text-blue-400 text-lg"></i>
+                        </div>
+                        <div class="flex-1 space-y-2 max-w-[90%] sm:max-w-[85%]">
+                            <div class="bg-white dark:bg-brand-darkCard p-4 rounded-3xl rounded-tl-sm shadow-sm border border-slate-100 dark:border-slate-800 text-[15px] leading-relaxed">
+                                <div class="ai-content whitespace-pre-wrap"></div>
+                                <div class="ai-sources mt-4 hidden border-t border-slate-100 dark:border-slate-800 pt-3"></div>
+                            </div>
+                            <div class="ai-actions hidden flex gap-1 ml-2"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            wrapper.innerHTML = innerHTML;
+            chatContainer.appendChild(wrapper);
+            
+            // 렌더링 후 부드럽게 나타나는 애니메이션 트리거
+            setTimeout(() => {
+                wrapper.classList.remove('translate-y-2', 'opacity-0');
+                if(sender === 'ai' && text) wrapper.querySelector('.ai-content').innerHTML = text;
+            }, 10);
+            
+            scrollToBottom();
+            return wrapper;
+        }
+
+        // ==========================================
+        // 스트리밍 통신 로직
+        // ==========================================
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = chatInput.value.trim();
+            if (!input || isReceiving) return;
+
+            appendMessage('user', input);
+            chatInput.value = '';
+            chatInput.style.height = 'auto'; // 입력창 높이 초기화
+            isReceiving = true;
+            sendBtn.disabled = true;
+            document.getElementById('suggestion-chips')?.remove();
+
+            const aiWrapper = appendMessage('ai', '');
+            const aiContent = aiWrapper.querySelector('.ai-content');
+            const aiSources = aiWrapper.querySelector('.ai-sources');
+            const aiActions = aiWrapper.querySelector('.ai-actions');
+            
+            aiContent.innerHTML = `<span class="text-brand-primary dark:text-blue-400 flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin"></i> 생각을 정리하는 중입니다...</span>`;
+
+            try {
+                const response = await fetch('/api/chat/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ input: input, sessionId: sessionId })
+                });
+
+                if (!response.ok) throw new Error("서버 응답 오류");
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let buffer = "";
+                let isFirstChunk = true;
+                let fullAnswerText = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n\n');
+                    buffer = lines.pop(); 
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.substring(6);
+                            try {
+                                const data = JSON.parse(dataStr);
+                                
+                                if (data.status === 'step') {
+                                    if (isFirstChunk) {
+                                        aiContent.innerHTML = `<span class="text-brand-primary dark:text-blue-400 flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin"></i> ${data.message}</span>`;
+                                    }
+                                } else if (data.text) {
+                                    if (isFirstChunk) { aiContent.innerHTML = ''; aiContent.classList.add('typing-cursor'); isFirstChunk = false; }
+                                    aiContent.textContent += data.text;
+                                    fullAnswerText += data.text;
+                                    scrollToBottom();
+                                } else if (data.sources && data.sources.length > 0) {
+                                    aiSources.classList.remove('hidden');
+                                    let sourcesHtml = `<div class="text-[12px] text-slate-400 dark:text-slate-500 mb-2 font-medium"><i class="fa-solid fa-link"></i> 참고한 링크</div><div class="flex flex-wrap gap-2">`;
+                                    data.sources.forEach(src => {
+                                        sourcesHtml += `<a href="${src.url}" target="_blank" class="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[12px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 hover:border-brand-primary dark:hover:border-blue-500 hover:text-brand-primary transition-colors truncate max-w-[200px]" title="${src.title}">${src.title}</a>`;
+                                    });
+                                    sourcesHtml += `</div>`;
+                                    aiSources.innerHTML = sourcesHtml;
+                                } else if (data.done) {
+                                    aiContent.classList.remove('typing-cursor');
+                                    buildActionButtons(aiActions, input, fullAnswerText);
+                                } else if (data.error) {
+                                    aiContent.classList.remove('typing-cursor');
+                                    aiContent.innerHTML = `<span class="text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg text-sm inline-block"><i class="fa-solid fa-triangle-exclamation"></i> 오류 발생: ${data.error}</span>`;
+                                }
+                            } catch (e) { console.error("JSON 파싱 에러:", e); }
+                        }
+                    }
+                }
+            } catch (error) {
+                aiContent.classList.remove('typing-cursor');
+                aiContent.innerHTML = `<span class="text-red-500 text-sm">서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.</span>`;
+            } finally {
+                isReceiving = false;
+                sendBtn.disabled = false;
+                chatInput.focus();
+                scrollToBottom();
+            }
+        });
+
+        // ==========================================
+        // 하단 액션 버튼 (복사, 피드백) 
+        // ==========================================
+        function buildActionButtons(container, questionText, answerText) {
+            container.classList.remove('hidden');
+            
+            const btnClass = "btn-active flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors";
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = btnClass;
+            copyBtn.innerHTML = `<i class="fa-regular fa-copy"></i> 복사`;
+            copyBtn.onclick = async () => {
+                try {
+                    await navigator.clipboard.writeText(answerText);
+                    copyBtn.innerHTML = `<i class="fa-solid fa-check text-green-500"></i> 복사완료`;
+                    setTimeout(() => copyBtn.innerHTML = `<i class="fa-regular fa-copy"></i> 복사`, 2000);
+                } catch (err) { alert('복사에 실패했습니다.'); }
+            };
+
+            const upBtn = document.createElement('button');
+            upBtn.className = btnClass;
+            upBtn.innerHTML = `<i class="fa-regular fa-thumbs-up"></i>`;
+            upBtn.onclick = () => submitFeedback(questionText, answerText, true, upBtn, downBtn);
+
+            const downBtn = document.createElement('button');
+            downBtn.className = btnClass;
+            downBtn.innerHTML = `<i class="fa-regular fa-thumbs-down"></i>`;
+            downBtn.onclick = () => submitFeedback(questionText, answerText, false, upBtn, downBtn);
+
+            container.appendChild(copyBtn);
+            container.appendChild(upBtn);
+            container.appendChild(downBtn);
+        }
+
+        async function submitFeedback(question, answer, isPositive, upBtn, downBtn) {
+            try {
+                await fetch('/api/chat/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId, question, answer, is_positive: isPositive })
+                });
+                if (isPositive) {
+                    upBtn.innerHTML = `<i class="fa-solid fa-thumbs-up text-blue-500"></i>`;
+                    downBtn.innerHTML = `<i class="fa-regular fa-thumbs-down"></i>`;
+                } else {
+                    downBtn.innerHTML = `<i class="fa-solid fa-thumbs-down text-red-500"></i>`;
+                    upBtn.innerHTML = `<i class="fa-regular fa-thumbs-up"></i>`;
+                }
+                upBtn.disabled = true; downBtn.disabled = true;
+            } catch (error) { console.error("피드백 전송 실패", error); }
+        }
+
+        clearHistoryBtn.addEventListener('click', async () => {
+            if (!confirm('현재 대화 기록을 모두 지우시겠습니까?')) return;
+            try {
+                await fetch(`/api/chat/history/${sessionId}`, { method: 'DELETE' });
+                location.reload(); 
+            } catch (error) { alert('기록 삭제 중 오류가 발생했습니다.'); }
+        });
+
+    </script>
+</body>
+</html>
