@@ -137,4 +137,62 @@ python enterprise_crawler.py
 
 *(실운영 환경 가동 시 6시간 주기로 무한 루프 스케줄링이 활성화됩니다.)*
 
-```mermaidgraph TD    START([사용자 입력 요청]) --> A{"명령어 검증 (! 시작여부)"}        A -->|Yes| B[command_node]    B --> END([즉시 응답 반환])        A -->|No| C[intent_analyzer_node]    C --> D{"intent_type 조건부 분기"}        D -->|summary / search| E[RAG_retrieval_node]    E --> F[llm_generation_node]        D -->|general| G[llm_with_tools_node]    G --> H{"도구 호출 필요 여부"}    H -->|Yes| I[tool_node]    H -->|No| F    I --> G        F --> END
+시스템 전체 워크플로우 (Workflow)
+
+graph TD
+    START([사용자 입력 요청]) --> A{"명령어 검증 (! 시작여부)"}
+    
+    %% 명령어 처리 분기
+    A -->|Yes| B[command_node]
+    B --> B1{명령어 유형 분류}
+    
+    subgraph 계정 및 세션 관리
+        B1 -->|!su / !whoami / !exit| B2[세션 상태 업데이트 및 조회]
+    end
+    
+    subgraph 사용자 DB 제어
+        B1 -->|!user add / ls / rm| B3[인메모리 및 벡터 시스템 동기화]
+    end
+    
+    subgraph 구독 키워드 제어
+        B1 -->|!kw add / rm / ls| B4[맞춤형 알림 키워드 DB 반영]
+    end
+    
+    B2 & B3 & B4 --> END([즉시 응답 반환])
+
+    %% 일반 입력 및 RAG 분기
+    A -->|No| C[intent_analyzer_node]
+    C --> D{"intent_type 조건부 분기"}
+    
+    D -->|summary / search| E[RAG_retrieval_node]
+    E --> F[llm_generation_node]
+    
+    D -->|general| G[llm_with_tools_node]
+    G --> H{"도구 호출 필요 여부"}
+    H -->|Yes| I[tool_node]
+    H -->|No| F
+    I --> G
+    
+    F --> END
+
+    ---
+    
+    nterprise_crawler.py
+    
+graph TD
+    INIT[6시간 주기 스케줄러 트리거] --> CA{"대학 사이트 공지사항 파싱<br>(충북대 홈페이지 / SW학과)"}
+    
+    %% 네트워크 폴트 톨러런스
+    CA -- 간헐적 네트워크 차단 발생 --> CB["지수 백오프 기반 재시도<br>(tenacity.retry)"]
+    CB --> CA
+    
+    %% LLM 태깅 및 저장
+    CA -- 파싱 성공 --> CC["LLM 기반 자동 태깅<br>(gpt-4o-mini / Pydantic 구조)"]
+    CC --> CD[메타데이터 빌드 및 ChromaDB 적재]
+    
+    %% 알림 발송 검증
+    CD --> CE{"구독 사용자 관심 키워드<br>vs 추출 태그 일치 여부"}
+    
+    CE -->|일치| CF["비동기 병렬 이메일 발송<br>(aiosmtplib / asyncio.gather)"]
+    CE -->|불일치| CG[프로세스 대기 및 종료]
+    CF --> CG
