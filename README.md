@@ -11,12 +11,12 @@
 
 | 과제 요구사항 | 프로젝트 구현 내용 및 소스코드 매핑 위치 |
 | :--- | :--- |
-| **1. 자율적 도구 호출**<br>(최소 2개 이상의 Tool) | - `@tool` 데코레이터를 기반으로 에이전트 전용 도구 구현 완료<br>  - `get_current_date_and_time`: 실시간 일정 매칭을 위한 시간 정보 도구<br>  - `get_user_academic_context`: 사용자의 학과, 학년, 관심사 맞춤형 컨텍스트 도구<br>  - `server.py`의 `tools = [get_current_date_and_time, get_user_academic_context]` 및 `ToolNode` 연동 완료 |
-| **2. RAG 파이프라인 구축**<br>(최소 1개 이상) | - **Chroma** 벡터 데이터베이스(`notice_collection`) 기반 시맨틱 검색 파이프라인 구축<br> - `OpenAIEmbeddings(text-embedding-3-small)` 모델을 이용해 크롤링된 공지사항 본문을 임베딩하고 자율 질의응답 및 요약 기능 수행 |
-| **3. 멀티턴 대화 및 메모리** | - LangGraph 내장 체크포인터인 **`MemorySaver`**를 연동하여 세션(`thread_id`)별 독립적인 대화 맥락 유지<br> - `add_messages` 툴을 통한 상태 업데이트로 멀티턴 대화 제어 |
-| **4. StateGraph 및 조건부 분기**<br>(Conditional Edge 필수) | - `StateGraph(AgentState)` 구조 설계<br> - 시스템 명령어(`!su`, `!kw add` 등) 감지 시 `command_node`로 분기하거나, 사용자 의도 분석 결과(`intent_type`)에 따라 자율적으로 RAG 검색, 요약, 혹은 일반 대화 노드로 라우팅하는 **조건부 분기(Conditional Edge)** 로직 완비 |
-| **5. 미들웨어 적용**<br>(최소 1개 이상) | - **안정성/운영 관점의 다중 가드레일 미들웨어 도입**<br>  - `slowapi` (`Limiter`)를 활용한 API 속도 제한(Rate Limiting)으로 DoS 방지 및 가드레일 구축<br>  - `GZipMiddleware`를 통한 네트워크 리소스 최적화<br>  - `tenacity` 라이브러리의 `@retry` 메커니즘을 크롤러 네트워크 통신 부에 적용하여 일시적 장애 복구력 확보 |
-
+| **1. 자율적 도구 호출**<br>(최소 2개 이상의 Tool) | - `@tool` 데코레이터를 기반으로 에이전트 전용 도구 구현 완료<br>- `get_current_date_and_time`: 실시간 일정 매칭을 위한 시간 정보 도구<br>- `get_user_academic_context`: 사용자의 학과, 학년, 관심사 맞춤형 컨텍스트 도구<br>- `server.py`의 `tools = [get_current_date_and_time, get_user_academic_context]` 및 `ToolNode` 연동 완료 |
+| **2. RAG 파이프라인 구축**<br>(최소 1개 이상) | - **Chroma** 벡터 데이터베이스(`notice_collection`) 기반 시맨틱 검색 파이프라인 구축<br>- `OpenAIEmbeddings(text-embedding-3-small)` 모델을 이용해 크롤링된 공지사항 본문을 임베딩하고 자율 질의응답 및 요약 기능 수행 |
+| **3. 멀티턴 대화 및 메모리** | - LangGraph 내장 체크포인터인 **`MemorySaver`**를 연동하여 세션(`thread_id`)별 독립적인 대화 맥락 유지<br>- `add_messages` 툴을 통한 상태 업데이트로 멀티턴 대화 제어 |
+| **4. StateGraph 및 조건부 분기**<br>(Conditional Edge 필수) | - `StateGraph(AgentState)` 구조 설계<br>- 시스템 명령어(`!su`, `!kw add` 등) 감지 시 `command_node`로 분기하거나, 사용자 의도 분석 결과(`intent_type`)에 따라 자율적으로 RAG 검색, 요약, 혹은 일반 대화 노드로 라우팅하는 **조건부 분기(Conditional Edge)** 로직 완비 |
+| **5. 미들웨어 적용**<br>(최소 1개 이상) | - **안정성/운영 관점의 다중 가드레일 미들웨어 도입**<br>- `slowapi` (`Limiter`)를 활용한 API 속도 제한(Rate Limiting)으로 DoS 방지 및 가드레일 구축<br>- `GZipMiddleware`를 통한 네트워크 리소스 최적화<br>- `tenacity` 라이브러리의 `@retry` 메커니즘을 크롤러 네트워크 통신 부에 적용하여 일시적 장애 복구력 확보 |
+| **6. 구조화된 출력 파서**<br>(OutputParser/Pydantic) | - **Pydantic 구조화 출력을 멀티 지점에서 활용**<br>- `UserIntent`: 사용자 요청의 키워드, 날짜 필터, 의도 유형 등을 파싱하여 RAG 전처리 수행<br>- `KeywordExtraction`: LLM 크롤링 파트에서 공지 본문 내 태그를 3~5개 형태로 완벽히 구조화 출력(`with_structured_output`) |
 | **7. API Key 분리 관리** | - `load_dotenv()` 기반 프로젝트 루트 내 `.env` 파일로 중요 자격 증명(`OPENAI_API_KEY`) 하드코딩 없이 철저히 분리 |
 
 ---
@@ -45,54 +45,3 @@ graph TD
     I --> G
     
     F --> END
-
-### 핵심 차별화 기능 (Key Features)
-
-1. **데이터 최신성 필터링 (Recency-Aware Post Filtering):**
-유사도가 높은 벡터 데이터라 할지라도 메타데이터상의 마감일(`end_date`)이 현재 시점보다 과거이거나, 작성일(`date`) 기준 180일을 초과한 과거 공지사항은 포스트 필터링 로직을 통해 자동으로 컨텍스트에서 배제하여 정보의 신뢰성을 극대화합니다.
-2. **동적 가변 결과 추출:**
-사용자가 "공지사항 5개 보여줘"와 같이 구체적인 숫자를 자연어로 요청할 경우, Pydantic 파서(`result_count`)가 이를 파싱하여 유연하게 컨텍스트 검색 수량을 조절합니다.
-
----
-
-## 💻 3. 사용법 및 실행 안내 (Usage Guide)
-
-### 백엔드 서버 구동
-
-```bash
-python server.py
-
-```
-
-* 서버는 기본적으로 `http://127.0.0.1:8000` 주소에서 대기합니다.
-* 웹 브라우저를 통해 해당 주소에 접속하면 세련된 UI의 `public/index.html` 모니터링 및 실시간 대화 화면을 만나보실 수 있습니다.
-
-### 채팅창 지원 시스템 명령어 체계
-
-채팅 입력란에 `!` 기호로 시작하는 명령어를 입력하여 데이터베이스 내 유저 세션 상태 및 키워드 구독 정보를 관리할 수 있습니다.
-
-| 명령어 그룹 | 명령어 패턴 | 설명 |
-| --- | --- | --- |
-| **계정 및 세션 관리** | `!su [이름] [이메일]` | 해당 사용자 계정으로 로그인 및 세션(컨텍스트 권한)을 즉시 전환합니다. |
-|  | `!whoami` | 현재 세션의 로그인 상태 및 등록된 맞춤 알림 키워드를 상시 확인합니다. |
-|  | `!exit` | 현재 로그인된 계정에서 로그아웃 처리를 수행합니다. |
-| **사용자 DB 제어** | `!user add [이름] [이메일]` | 새로운 사용자를 인메모리/벡터 시스템에 안전하게 등록합니다. |
-|  | `!user ls` | 시스템에 등록되어 있는 전체 사용자 계정 리스트를 출력합니다. |
-|  | `!user rm [이름] [이메일]` | 특정 사용자 데이터를 데이터베이스에서 안전하게 완전 삭제합니다. |
-| **구독 키워드 제어** | `!kw add [키워드...]` | 현재 계정에 푸시 알림 타겟팅을 위한 맞춤형 학사 알림 키워드를 복수 등록합니다. |
-|  | `!kw rm [키워드...]` | 기등록된 알림 키워드 중 불필요한 단어를 선택 삭제합니다. |
-|  | `!kw ls` | 현재 계정이 구독 중인 모든 알림 키워드를 일목요연하게 조회합니다. |
-
----
-
-## 📈 4. 크롤링 및 실시간 알림 스케줄러 (`enterprise_crawler.py`)
-
-타겟팅 대학 사이트(`충북대학교 소프트웨어학과`, `충북대학교 홈페이지`)의 공지사항을 주기적으로 파싱하는 독립 백그라운드 프로세스입니다.
-
-* **네트워크 폴트 톨러런스:** 지수 백오프 기반 `tenacity.retry` 메커니즘을 내장하여 간헐적 네트워크 차단 시 자동 재시도합니다.
-* **LLM 기반 자동 태깅 및 벡터화:** 단순 텍스트 수집에 그치지 않고, 수집 시점에 `gpt-4o-mini` 모델을 사용해 핵심 태그 3~5개를 Pydantic 구조로 추출하여 메타데이터에 함께 빌드 및 ChromaDB에 적재합니다.
-* **키워드 일치 푸시 알림:** 등록된 사용자의 관심 키워드와 신규 수집된 공지의 자동 추출 태그가 매칭될 경우, `aiosmtplib`를 활용한 이메일 알림 발송 로직이 비동기 병렬(`asyncio.gather`)로 즉각 트리거됩니다.
-
-```bash
-python enterprise_crawler.py
-*(실운영 환경 가동 시 6시간 주기로 무한 루프 스케줄링이 활성화됩니다.)*
