@@ -137,8 +137,9 @@ python enterprise_crawler.py
 
 *(실운영 환경 가동 시 6시간 주기로 무한 루프 스케줄링이 활성화됩니다.)*
 
-시스템 전체 워크플로우 (Workflow)
+### 시스템 전체 워크플로우 (Workflow)
 
+```mermaid
 graph TD
     START([사용자 입력 요청]) --> A{"명령어 검증 (! 시작여부)"}
     
@@ -174,11 +175,13 @@ graph TD
     I --> G
     
     F --> END
+```
 
-    ---
-    
-    nterprise_crawler.py
-    
+---
+
+### enterprise_crawler.py 워크플로우
+
+```mermaid
 graph TD
     INIT[6시간 주기 스케줄러 트리거] --> CA{"대학 사이트 공지사항 파싱<br>(충북대 홈페이지 / SW학과)"}
     
@@ -196,3 +199,4 @@ graph TD
     CE -->|일치| CF["비동기 병렬 이메일 발송<br>(aiosmtplib / asyncio.gather)"]
     CE -->|불일치| CG[프로세스 대기 및 종료]
     CF --> CG
+```
