@@ -16,7 +16,7 @@
 | **3. 멀티턴 대화 및 메모리** | - LangGraph 내장 체크포인터인 **`MemorySaver`**를 연동하여 세션(`thread_id`)별 독립적인 대화 맥락 유지<br> - `add_messages` 툴을 통한 상태 업데이트로 멀티턴 대화 제어 |
 | **4. StateGraph 및 조건부 분기**<br>(Conditional Edge 필수) | - `StateGraph(AgentState)` 구조 설계<br> - 시스템 명령어(`!su`, `!kw add` 등) 감지 시 `command_node`로 분기하거나, 사용자 의도 분석 결과(`intent_type`)에 따라 자율적으로 RAG 검색, 요약, 혹은 일반 대화 노드로 라우팅하는 **조건부 분기(Conditional Edge)** 로직 완비 |
 | **5. 미들웨어 적용**<br>(최소 1개 이상) | - **안정성/운영 관점의 다중 가드레일 미들웨어 도입**<br>  - `slowapi` (`Limiter`)를 활용한 API 속도 제한(Rate Limiting)으로 DoS 방지 및 가드레일 구축<br>  - `GZipMiddleware`를 통한 네트워크 리소스 최적화<br>  - `tenacity` 라이브러리의 `@retry` 메커니즘을 크롤러 네트워크 통신 부에 적용하여 일시적 장애 복구력 확보 |
-| **6. 구조화된 출력 파서**<br>(OutputParser/Pydantic) | - **Pydantic 구조화 출력을 멀티 지점에서 활용**<br>  - `UserIntent`: 사용자 요청의 키워드, 날짜 필터, 의도 유형 등을 파싱하여 RAG 전처리 수행<br>  - `KeywordExtraction`: LLM 크롤링 파트에서 공지 본문 내 태그를 3~5개 형태로 완벽히 구조화 출력(`with_structured_output`) |
+
 | **7. API Key 분리 관리** | - `load_dotenv()` 기반 프로젝트 루트 내 `.env` 파일로 중요 자격 증명(`OPENAI_API_KEY`) 하드코딩 없이 철저히 분리 |
 
 ---
