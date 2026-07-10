@@ -136,3 +136,5 @@ python enterprise_crawler.py
 ```
 
 *(실운영 환경 가동 시 6시간 주기로 무한 루프 스케줄링이 활성화됩니다.)*
+
+```mermaidgraph TD    START([사용자 입력 요청]) --> A{"명령어 검증 (! 시작여부)"}        A -->|Yes| B[command_node]    B --> END([즉시 응답 반환])        A -->|No| C[intent_analyzer_node]    C --> D{"intent_type 조건부 분기"}        D -->|summary / search| E[RAG_retrieval_node]    E --> F[llm_generation_node]        D -->|general| G[llm_with_tools_node]    G --> H{"도구 호출 필요 여부"}    H -->|Yes| I[tool_node]    H -->|No| F    I --> G        F --> END
