@@ -83,13 +83,13 @@ def add_user_subscription(email: str, keywords: List[str]):
         metadata={"email": email, "keywords": keyword_str}
     )
     user_store.add_documents(documents=[doc], ids=[email])
-    logger.info(f"사용자 구독 정보 업데이트 완료: {email} -> [{keyword_str}]")
+    logger.info(f"👤 사용자 구독 정보 업데이트 완료: {email} -> [{keyword_str}]")
 
 def delete_user_subscription(email: str):
     """특정 사용자의 구독 정보를 DB에서 삭제합니다."""
     try:
         user_store.delete(ids=[email])
-        logger.info(f"사용자 구독 정보 삭제 완료: {email}")
+        logger.info(f"👤 사용자 구독 정보 삭제 완료: {email}")
     except Exception as e:
         logger.error(f"구독 정보 삭제 실패 (존재하지 않는 이메일): {email}")
 
@@ -295,7 +295,7 @@ async def crawl_and_update_db():
         logger.info("업데이트된 새 공지가 없습니다.")
         return
 
-    # 중복 필터링 로직 추가 (배치 내에서 동일한 문서가 두 번 수집된 경우 제거)
+    # [수정됨] 중복 필터링 로직 추가 (배치 내에서 동일한 문서가 두 번 수집된 경우 제거)
     unique_docs = []
     unique_ids = []
     seen_ids = set()
@@ -326,7 +326,7 @@ async def crawl_and_update_db():
     # 발송 태스크를 모아둘 리스트 생성 및 검색 조건 최적화
     notification_tasks = []
     
-    # 중복이 제거된 unique_docs를 기준으로 이메일 발송
+    # [수정됨] 중복이 제거된 unique_docs를 기준으로 이메일 발송
     for doc in unique_docs:
         # LLM이 추출한 핵심 키워드 문자열만 가져옴
         doc_tags = doc.metadata.get("tags", "")
@@ -353,7 +353,12 @@ async def crawl_and_update_db():
 
 # ── 스케줄러 ──
 async def run_scheduler():
-    logger.info("크롤링 및 알림 시스템 초기화를 시작합니다.")    
+    logger.info("크롤링 및 알림 시스템 초기화를 시작합니다.")
+    
+    # [개선 2] 테스트용 하드코딩 구독 데이터 제거 (실운영 시 주석 처리 또는 삭제)
+    # add_user_subscription("student1@example.com", ["장학", "근로", "등록금"])
+    # add_user_subscription("student2@example.com", ["인턴", "소프트웨어", "채용", "대회"])
+    
     await crawl_and_update_db()
     logger.info(f"1회차 크롤링이 완료되었습니다.")
     logger.info(f"다음 크롤링 대기중...")
